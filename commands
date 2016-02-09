@@ -31,6 +31,7 @@ case "$1" in
 
     mkdir -p "$SERVICE_ROOT" || dokku_log_fail "Unable to create service directory"
     mkdir -p "$SERVICE_ROOT/data" || dokku_log_fail "Unable to create service data directory"
+    mkdir -p "$SERVICE_ROOT/config" || dokku_log_fail "Unable to create service config directory"
     password=$(openssl rand -hex 16)
     echo "$password" > "$SERVICE_ROOT/PASSWORD"
     touch "$LINKS_FILE"
@@ -42,7 +43,7 @@ case "$1" in
       echo "" > "$SERVICE_ROOT/ENV"
     fi
     SERVICE_NAME=$(get_service_name "$SERVICE")
-    ID=$(docker run --name "$SERVICE_NAME" -v "$SERVICE_ROOT/data:/var/lib/rabbitmq" --hostname $SERVICE -e RABBITMQ_DEFAULT_USER=$SERVICE -e RABBITMQ_DEFAULT_PASS=$password -e RABBITMQ_DEFAULT_VHOST=$SERVICE --env-file="$SERVICE_ROOT/ENV" -d --restart always --label dokku=service --label dokku.service=rabbitmq "$PLUGIN_IMAGE:$PLUGIN_IMAGE_VERSION")
+    ID=$(docker run --name "$SERVICE_NAME" -v "$SERVICE_ROOT/data:/var/lib/rabbitmq" -v "$SERVICE_ROOT/config:/etc/rabbitmq" --hostname $SERVICE -e RABBITMQ_DEFAULT_USER=$SERVICE -e RABBITMQ_DEFAULT_PASS=$password -e RABBITMQ_DEFAULT_VHOST=$SERVICE --env-file="$SERVICE_ROOT/ENV" -d --restart always --label dokku=service --label dokku.service=rabbitmq "$PLUGIN_IMAGE:$PLUGIN_IMAGE_VERSION")
     echo "$ID" > "$SERVICE_ROOT/ID"
 
     dokku_log_verbose_quiet "Waiting for container to be ready"
@@ -87,7 +88,7 @@ case "$1" in
     fi
 
     dokku_log_verbose_quiet "Removing data"
-    docker run --rm -v "$SERVICE_ROOT/data:/data" "$PLUGIN_IMAGE:$PLUGIN_IMAGE_VERSION" chmod 777 -R /data
+    docker run --rm -v "$SERVICE_ROOT/data:/data" -v "$SERVICE_ROOT/config:/etc/rabbitmq" "$PLUGIN_IMAGE:$PLUGIN_IMAGE_VERSION" chmod 777 -R /data
     rm -rf "$SERVICE_ROOT"
 
     dokku_log_info2 "$PLUGIN_SERVICE container deleted: $SERVICE"
